@@ -15,6 +15,7 @@ import reactor.netty.http.client.HttpClient;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import static guru.springframework.sfgrestbrewery.bootstrap.BeerLoader.BEER_1_UPC;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -55,7 +56,26 @@ class WebClientIT {
     }
 
     @Test
-    void testListBeers() throws InterruptedException {
+    void getBeerByUpc() throws InterruptedException {
+        CountDownLatch countDownLatch = new CountDownLatch(1);
+
+        Mono<BeerDto> beerDtoMono = webClient.get().uri("api/v1/beerUpc/" + BEER_1_UPC)
+                .accept(MediaType.APPLICATION_JSON)
+                .retrieve().bodyToMono(BeerDto.class);
+
+        beerDtoMono.subscribe(beer -> {
+            assertThat(beer).isNotNull();
+            assertThat(beer.getBeerName()).isNotNull();
+
+            countDownLatch.countDown();
+        });
+
+        countDownLatch.await(1000, TimeUnit.MILLISECONDS);
+        assertThat(countDownLatch.getCount()).isEqualTo(0);
+    }
+
+    @Test
+    void listBeers() throws InterruptedException {
 
         CountDownLatch countDownLatch = new CountDownLatch(1);
 
@@ -63,16 +83,12 @@ class WebClientIT {
                 .accept(MediaType.APPLICATION_JSON)
                 .retrieve().bodyToMono(BeerPagedList.class);
 
-
-//        BeerPagedList pagedList = beerPagedListMono.block();
-//        pagedList.getContent().forEach(beerDto -> System.out.println(beerDto.toString()));
         beerPagedListMono.publishOn(Schedulers.parallel()).subscribe(beerPagedList -> {
-
-            beerPagedList.getContent().forEach(beerDto -> System.out.println(beerDto.toString()));
-
+            assertThat(beerPagedList.getContent().size()).isEqualTo(25);
             countDownLatch.countDown();
         });
 
-        countDownLatch.await();
+        countDownLatch.await(1000, TimeUnit.MILLISECONDS);
+        assertThat(countDownLatch.getCount()).isEqualTo(0);
     }
 }

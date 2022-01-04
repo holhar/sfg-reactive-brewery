@@ -13,6 +13,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.relational.core.sql.In;
 import org.springframework.http.MediaType;
+import org.springframework.r2dbc.connection.init.ConnectionFactoryInitializer;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import reactor.core.publisher.Mono;
 
@@ -33,6 +34,9 @@ class BeerControllerTest {
     @MockBean
     BeerService beerService;
 
+    @MockBean
+    ConnectionFactoryInitializer initializer;
+
     BeerDto validBeer;
 
     @BeforeEach
@@ -47,7 +51,7 @@ class BeerControllerTest {
     @Test
     void listBeers() {
         BeerPagedList beerPagedList = new BeerPagedList(Collections.singletonList(validBeer), PageRequest.of(1, 1), 1);
-        given(beerService.listBeers(anyString(), any(BeerStyleEnum.class), any(PageRequest.class), eq(Boolean.FALSE))).willReturn(beerPagedList);
+        given(beerService.listBeers(anyString(), any(BeerStyleEnum.class), any(PageRequest.class), eq(Boolean.FALSE))).willReturn(Mono.just(beerPagedList));
 
         webTestClient.get()
                 .uri(uriBuilder -> uriBuilder.path("/api/v1/beer")
@@ -66,11 +70,10 @@ class BeerControllerTest {
 
     @Test
     void getBeerById() {
-        Integer beerId = 1;
         given(beerService.getById(any(), any())).willReturn(Mono.just(validBeer));
 
         webTestClient.get()
-                .uri("/api/v1/beer/" + beerId)
+                .uri("/api/v1/beer/1")
                 .accept(MediaType.APPLICATION_JSON)
                 .exchange()
                 .expectStatus().isOk()
@@ -81,7 +84,7 @@ class BeerControllerTest {
     @Test
     void getBeerByUpc() {
         var upc = "upc-code";
-        given(beerService.getByUpc(upc)).willReturn(validBeer);
+        given(beerService.getByUpc(upc)).willReturn(Mono.just(validBeer));
 
         webTestClient.get()
                 .uri("/api/v1/beerUpc/" + upc)
