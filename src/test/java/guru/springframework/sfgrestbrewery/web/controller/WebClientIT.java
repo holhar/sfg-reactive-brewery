@@ -217,4 +217,38 @@ class WebClientIT {
         countDownLatch.await(1000, TimeUnit.MILLISECONDS);
         assertThat(countDownLatch.getCount()).isEqualTo(0);
     }
+
+    @Test
+    void deleteBeer() throws InterruptedException {
+
+        CountDownLatch countDownLatch = new CountDownLatch(3);
+
+        webClient.get().uri("/api/v1/beer")
+                .accept(MediaType.APPLICATION_JSON)
+                .retrieve()
+                .bodyToMono(BeerPagedList.class)
+                .publishOn(Schedulers.single())
+                .subscribe(pagedList -> {
+                    countDownLatch.countDown();
+
+                    BeerDto beerDto = pagedList.getContent().get(0);
+
+                    webClient.delete().uri("/api/v1/beer/" + beerDto.getId() )
+                            .retrieve().toBodilessEntity()
+                            .flatMap(responseEntity -> {
+                                countDownLatch.countDown();
+
+                                return webClient.get().uri("/api/v1/beer/" + beerDto.getId())
+                                        .accept(MediaType.APPLICATION_JSON)
+                                        .retrieve().bodyToMono(BeerDto.class);
+                            }) .subscribe(savedDto -> {
+
+                            }, throwable -> {
+                                countDownLatch.countDown();
+                            });
+                });
+
+        countDownLatch.await(1000, TimeUnit.MILLISECONDS);
+        assertThat(countDownLatch.getCount()).isEqualTo(0);
+    }
 }
